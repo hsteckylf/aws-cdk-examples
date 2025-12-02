@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_iam as iam,
     Duration,
+    CfnOutput,
 )
 from constructs import Construct
 
@@ -88,12 +89,37 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
         demo_table.grant_write_data(api_hanlder)
         api_hanlder.add_environment("TABLE_NAME", demo_table.table_name)
 
-        # Create API Gateway
-        apigw_.LambdaRestApi(
+        # Create API Gateway with throttling configuration
+        api = apigw_.LambdaRestApi(
             self,
             "Endpoint",
             handler=api_hanlder,
             deploy_options=apigw_.StageOptions(
                 tracing_enabled=True,
+                throttling_rate_limit=100,
+                throttling_burst_limit=200,
             ),
+        )
+
+        # Create usage plan with per-client throttling
+        plan = api.add_usage_plan(
+            "UsagePlan",
+            name="StandardUsagePlan",
+            throttle=apigw_.ThrottleSettings(
+                rate_limit=50,
+                burst_limit=100
+            ),
+        )
+
+        # Create API key and associate with usage plan
+        api_key = api.add_api_key("ApiKey", api_key_name="StandardApiKey")
+        plan.add_api_key(api_key)
+        plan.add_api_stage(stage=api.deployment_stage)
+
+        # Output API key ID for retrieval
+        CfnOutput(
+            self,
+            "ApiKeyId",
+            value=api_key.key_id,
+            description="API Key ID - use 'aws apigateway get-api-key --api-key <id> --include-value' to retrieve key value"
         )
