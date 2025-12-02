@@ -8,6 +8,38 @@ Creates an [AWS Lambda](https://aws.amazon.com/lambda/) function writing to [Ama
 
 ![architecture](docs/architecture.png)
 
+## Throttling Configuration
+
+This API implements AWS Well-Architected Framework best practice **REL05-BP02: Throttle requests** with the following limits:
+
+**Stage-Level Throttling:**
+- Rate limit: 100 requests/second
+- Burst limit: 200 requests
+
+**Per-Client Throttling (Usage Plan):**
+- Rate limit: 50 requests/second
+- Burst limit: 100 requests
+
+**Benefits:**
+- Protects against unexpected traffic spikes and retry storms
+- Prevents resource exhaustion of Lambda and DynamoDB
+- Enables per-client rate limiting via API keys
+- Returns HTTP 429 (Too Many Requests) when limits exceeded
+
+**API Key Usage:**
+After deployment, retrieve your API key value:
+```bash
+aws apigateway get-api-key --api-key <API_KEY_ID> --include-value
+```
+
+Include the API key in requests:
+```bash
+curl -X POST https://<api-id>.execute-api.<region>.amazonaws.com/prod/ \
+  -H "x-api-key: <your-api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"year":"2023","title":"Example","id":"123"}'
+```
+
 ## Setup
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
