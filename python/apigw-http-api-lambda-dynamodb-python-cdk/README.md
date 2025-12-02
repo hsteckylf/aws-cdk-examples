@@ -8,6 +8,27 @@ Creates an [AWS Lambda](https://aws.amazon.com/lambda/) function writing to [Ama
 
 ![architecture](docs/architecture.png)
 
+## AWS WAF Rate Limiting
+
+This API implements AWS Well-Architected Framework best practice **REL05-BP02: Throttle requests** with AWS WAF protection:
+
+**Rate-Based Rule:**
+- Limit: 2,000 requests per 5 minutes per IP address
+- Action: Block requests exceeding the limit
+- Aggregate: Per source IP address
+
+**Benefits:**
+- Protects against DDoS attacks and flooding from specific IPs
+- Blocks malicious traffic at the edge before reaching API Gateway
+- Independent layer of protection from API Gateway throttling
+- CloudWatch metrics and alarms for monitoring blocked requests
+
+**Monitoring:**
+After deployment, monitor WAF metrics in CloudWatch:
+- Namespace: `AWS/WAFV2`
+- Metrics: `BlockedRequests`, `AllowedRequests`
+- Alarm triggers when >100 requests blocked in 5 minutes
+
 ## Setup
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
