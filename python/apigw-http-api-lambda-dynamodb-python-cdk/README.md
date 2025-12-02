@@ -8,6 +8,37 @@ Creates an [AWS Lambda](https://aws.amazon.com/lambda/) function writing to [Ama
 
 ![architecture](docs/architecture.png)
 
+## Capacity Planning and Throttling Alignment
+
+This application implements AWS Well-Architected Framework best practice **REL05-BP02: Throttle requests** with aligned capacity across all layers:
+
+### Lambda Function Configuration
+- **Reserved Concurrency:** 50 executions
+- **Memory:** 1024 MB
+- **Timeout:** 5 minutes
+- **Benefit:** Prevents this function from consuming all account concurrency, protecting other Lambda functions
+
+### DynamoDB Table Configuration
+- **Billing Mode:** On-Demand (PAY_PER_REQUEST)
+- **Auto-scaling:** Automatic capacity adjustment
+- **Expected Capacity:** Supports up to 100+ writes/second with on-demand mode
+- **Benefit:** Eliminates provisioned capacity management while supporting burst traffic
+
+### Capacity Alignment Strategy
+The reserved concurrency of 50 executions aligns with expected API traffic patterns:
+- With average execution time of ~500ms, 50 concurrent executions support ~100 requests/second
+- DynamoDB on-demand mode auto-scales to match Lambda write throughput
+- Reserved concurrency prevents account-level Lambda throttling during traffic spikes
+
+### Monitoring
+CloudWatch alarms monitor capacity utilization:
+- **Lambda Throttle Alarm:** Triggers when function is throttled (>10 throttles in 5 minutes)
+- **DynamoDB Throttle Alarm:** Triggers when table returns throttling errors (>10 errors in 5 minutes)
+
+Monitor these metrics in CloudWatch:
+- `AWS/Lambda` - `Throttles`, `ConcurrentExecutions`
+- `AWS/DynamoDB` - `UserErrors`, `ConsumedWriteCapacityUnits`
+
 ## Setup
 
 The `cdk.json` file tells the CDK Toolkit how to execute your app.
