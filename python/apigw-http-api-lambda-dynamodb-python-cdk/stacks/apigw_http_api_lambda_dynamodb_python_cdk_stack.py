@@ -75,6 +75,7 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             runtime=lambda_.Runtime.PYTHON_3_9,
             code=lambda_.Code.from_asset("lambda/apigw-handler"),
             handler="index.handler",
+            tracing=lambda_.Tracing.ACTIVE,
             vpc=vpc,
             vpc_subnets=ec2.SubnetSelection(
                 subnet_type=ec2.SubnetType.PRIVATE_ISOLATED
@@ -92,4 +93,7 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             self,
             "Endpoint",
             handler=api_hanlder,
+            deploy_options=apigw_.StageOptions(
+                tracing_enabled=True,
+            ),
         )
