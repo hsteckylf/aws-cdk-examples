@@ -9,6 +9,7 @@ from aws_cdk import (
     aws_apigateway as apigw_,
     aws_ec2 as ec2,
     aws_iam as iam,
+    aws_cloudwatch as cloudwatch,
     Duration,
 )
 from constructs import Construct
@@ -58,16 +59,17 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             )
         )
 
-        # Create DynamoDb Table
+        # Create DynamoDb Table with explicit billing mode
         demo_table = dynamodb_.Table(
             self,
             TABLE_NAME,
             partition_key=dynamodb_.Attribute(
                 name="id", type=dynamodb_.AttributeType.STRING
             ),
+            billing_mode=dynamodb_.BillingMode.PAY_PER_REQUEST,
         )
 
-        # Create the Lambda function to receive the request
+        # Create the Lambda function with reserved concurrency
         api_hanlder = lambda_.Function(
             self,
             "ApiHandler",
@@ -82,6 +84,7 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             ),
             memory_size=1024,
             timeout=Duration.minutes(5),
+            reserved_concurrent_executions=50,
         )
 
         # grant permission to lambda to write to demo table
@@ -96,4 +99,33 @@ class ApigwHttpApiLambdaDynamodbPythonCdkStack(Stack):
             deploy_options=apigw_.StageOptions(
                 tracing_enabled=True,
             ),
+        )
+
+        # CloudWatch alarm for Lambda throttling
+        cloudwatch.Alarm(
+            self,
+            "LambdaThrottleAlarm",
+            metric=api_hanlder.metric_throttles(
+                statistic="Sum",
+                period=Duration.minutes(5),
+            ),
+            threshold=10,
+            evaluation_periods=1,
+            alarm_description="Alert when Lambda function is throttled",
+        )
+
+        # CloudWatch alarm for DynamoDB throttled requests
+        cloudwatch.Alarm(
+            self,
+            "DynamoDBThrottleAlarm",
+            metric=cloudwatch.Metric(
+                namespace="AWS/DynamoDB",
+                metric_name="UserErrors",
+                dimensions_map={"TableName": demo_table.table_name},
+                statistic="Sum",
+                period=Duration.minutes(5),
+            ),
+            threshold=10,
+            evaluation_periods=1,
+            alarm_description="Alert when DynamoDB table returns throttling errors",
         )
